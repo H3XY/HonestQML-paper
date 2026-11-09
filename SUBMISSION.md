@@ -7,10 +7,10 @@ Everything needed to post the preprint and submit it. Steps marked **you** need 
 - [x] Numbers cross-checked against `results/` in both repos (2026-11-09). One fix: shadow accuracy range 0.94–0.99.
 - [x] References checked against arXiv and Crossref. DOIs added; Qiskit is cited via its 2024 paper.
 - [x] Overclaim fixed: the QNN "does not clearly beat" classical models (CVE: 0.699 vs 0.692).
-- [x] Code repos: full MIT license and CITATION.cff added (H3XY/AGI#5, H3XY/Entangle#14).
+- [x] Code repos: full MIT license and CITATION.cff added; history cleaned (no personal email or hostname) and both repos made public (2026-11-09). Original histories and PRs are in the private, archived H3XY/AGI-archive and H3XY/Entangle-archive.
 - [ ] **you:** read the paper end to end.
 - [ ] **you:** decide on the author line and affiliation, and an optional contact email (currently "Vivek Reddy, Independent researcher").
-- [ ] **you:** make H3XY/AGI and H3XY/Entangle public (see the privacy note in the conversation or below).
+- [x] H3XY/AGI and H3XY/Entangle are public.
 - [ ] **you (optional):** archive both repos on Zenodo for a DOI. Log in to zenodo.org with GitHub, enable the repos, then create a GitHub release.
 
 ## 2. arXiv

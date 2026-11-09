@@ -18,7 +18,8 @@ Figures in `figures/` are copied from the two repos' `results/` folders. Re-copy
 
 - [x] Confirm every number against the repos' `results/` files (done; you still read it end to end)
 - [x] Check every entry in `refs.bib` against the publisher's page (done: arXiv + Crossref)
-- [ ] Make `H3XY/AGI` and `H3XY/Entangle` public, and archive each release on Zenodo for a DOI
+- [x] Make `H3XY/AGI` and `H3XY/Entangle` public (done 2026-11-09)
+- [ ] Optional: archive each release on Zenodo for a DOI
 - [ ] Decide on the author line and affiliation, and add a contact email if you want one
 - [ ] Keep or edit the AI-assistance statement in the acknowledgements (arXiv and most journals require disclosure)
 - [ ] arXiv: category `quant-ph`, with `cs.LG` as a cross-list. First-time submitters need an endorsement
