@@ -20,7 +20,7 @@ Fair Baselines and Real-Hardware Results on IBM Heron}
 
 \begin{abstract}
 We benchmark small quantum neural networks (QNNs) against classical models under four rules: classical baselines see the same inputs, a strong classical ceiling is always reported, hardware runs are compared with noise-free simulation on identical samples, and anomalies are re-run against the shot-noise expectation.
-On classical data (two text tasks and three standard datasets), a 4-qubit QNN fed by a sentence-embedding encoder matches but never beats logistic regression on the same four features (sentiment: 0.758 vs.\ 0.769; CVE severity: 0.699 vs.\ 0.692).
+On classical data (two text tasks and three standard datasets), a 4-qubit QNN fed by a sentence-embedding encoder matches but does not clearly beat logistic regression on the same four features (within about one point) (sentiment: 0.758 vs.\ 0.769; CVE severity: 0.699 vs.\ 0.692).
 On IBM's 156-qubit \texttt{ibm\_marrakesh}, the compiled circuits (depth 37, six two-qubit gates) reproduced noise-free predictions exactly on 4 of 5 datasets; repeated runs attribute the remaining drop to shot noise ($p \approx 0.27$), and a standard fake-backend noise model overstated the bias fivefold.
 On quantum data, a two-copy QNN separates pure from mixed states with about 32 copies from 2 to 6 qubits, while classical shadows need 128 to 4{,}096, reproducing the known exponential multi-copy separation at small scale.
 Code and all result files are public.
@@ -33,7 +33,7 @@ We ask a deliberately narrow question: for small, trainable quantum classifiers 
 We report two projects. The first trains a 4-qubit QNN on classical data, including two text-classification tasks. The second classifies quantum states directly, where theory predicts separations for learners with quantum memory~\cite{huang2022experiments}. Both run end to end on IBM Quantum hardware through the free Open Plan. Our contributions are:
 \begin{itemize}
   \item an evaluation protocol that keeps quantum and classical models on identical inputs and hardware and simulation on identical samples (Section~\ref{sec:protocol});
-  \item evidence that circuit design, not qubit count, dominated accuracy on classical data, and that a well-designed QNN matches but does not beat classical models there (Section~\ref{sec:classical});
+  \item evidence that circuit design, not qubit count, dominated accuracy on classical data, and that a well-designed QNN matches but does not clearly beat classical models there (Section~\ref{sec:classical});
   \item a repeated-run analysis showing a current Heron-generation device is effectively noise-free for shallow classifiers, and that a commonly used noise model overstates its bias (Section~\ref{sec:hardware});
   \item a small-scale reproduction of the exponential copy-complexity gap between two-copy QNNs and classical shadows for purity testing (Section~\ref{sec:quantum}).
 \end{itemize}
@@ -96,7 +96,7 @@ Summed over inputs this predicts 1.15 flips per run. We observed 2, 2 and 1 (acc
 \section{Quantum classifiers on quantum data}\label{sec:quantum}
 The second project gives models direct access to quantum states. Classical learners receive classical-shadow features~\cite{huang2020shadows} from random-Pauli snapshots, or full state vectors where noted.
 
-\paragraph{Entanglement (2--4 qubits).} A two-copy QNN separates entangled from product states perfectly in exact simulation; a one-copy QNN stays at chance, as its output is linear in $\rho$. Classical models on full state vectors fall towards chance as qubits increase (0.69 to 0.54), while models on 256 shadow snapshots reach 0.92--0.98.
+\paragraph{Entanglement (2--4 qubits).} A two-copy QNN separates entangled from product states perfectly in exact simulation; a one-copy QNN stays at chance, as its output is linear in $\rho$. Classical models on full state vectors fall towards chance as qubits increase (0.69 to 0.54), while the best model on 256 shadow snapshots reaches 0.94--0.99 depending on size.
 
 \paragraph{Phases.} For ground states of the transverse-field Ising chain (4--8 qubits) and a $\mathbb{Z}_2$ lattice gauge model, QCNNs~\cite{cong2019qcnn}, generic QNNs and classical models all score 0.96--1.00: no quantum edge.
 
