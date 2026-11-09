@@ -25,3 +25,7 @@ Figures in `figures/` are copied from the two repos' `results/` folders. Re-copy
 - [ ] arXiv: category `quant-ph`, with `cs.LG` as a cross-list. First-time submitters need an endorsement
 
 See [SUBMISSION.md](SUBMISSION.md) for the arXiv metadata, endorsement email and venues.
+
+## Blog post
+
+A copy of the blog draft is in [blog/post.md](blog/post.md).
