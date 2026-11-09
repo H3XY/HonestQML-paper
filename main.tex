@@ -19,105 +19,234 @@ Fair Baselines and Real-Hardware Results on IBM Heron}
 \maketitle
 
 \begin{abstract}
-We benchmark small quantum neural networks (QNNs) against classical models under four rules: classical baselines see the same inputs, a strong classical ceiling is always reported, hardware runs are compared with noise-free simulation on identical samples, and anomalies are re-run against the shot-noise expectation.
-On classical data (two text tasks and three standard datasets), a 4-qubit QNN fed by a sentence-embedding encoder matches but does not clearly beat logistic regression on the same four features (within about one point) (sentiment: 0.758 vs.\ 0.769; CVE severity: 0.699 vs.\ 0.692).
-On IBM's 156-qubit \texttt{ibm\_marrakesh}, the compiled circuits (depth 37, six two-qubit gates) reproduced noise-free predictions exactly on 4 of 5 datasets; repeated runs attribute the remaining drop to shot noise ($p \approx 0.27$), and a standard fake-backend noise model overstated the bias fivefold.
-On quantum data, a two-copy QNN separates pure from mixed states with about 32 copies from 2 to 6 qubits, while classical shadows need 128 to 4{,}096, reproducing the known exponential multi-copy separation at small scale.
-Code and all result files are public.
+We compare small quantum neural networks (QNNs) with classical models under a fixed protocol: classical baselines receive the same inputs and are tuned by cross-validation, a strong classical reference is always reported, hardware runs are compared with noise-free simulation on identical inputs, and hardware deviations are tested against the exact shot-noise expectation.
+On two text tasks, a 4-qubit QNN fed by a sentence encoder is within 1.5 percentage points of tuned classical models on the same four features: slightly but significantly below on sentiment (0.757 $\pm$ 0.007 vs.\ 0.772 over three seeds) and statistically tied on CVE severity (0.699 $\pm$ 0.015 vs.\ 0.691).
+A controlled ablation attributes most of the effect of circuit design to the data encoding (21 points), while 2--6 qubits changed accuracy by at most 1.2 points.
+On IBM's \texttt{ibm\_marrakesh}, with 200 inputs per task and repeated runs on fixed physical qubits, device accuracy is statistically indistinguishable from noise-free simulation, but the device shows a small, resolvable bias in output probability ($-0.005$ and $-0.004$, 95\% CIs excluding zero) whose size varied between sessions.
+A noise model of the same device reproduces this bias; a model of an older 5-qubit device overstates it about fivefold.
+In exact simulation of quantum data, a learned two-copy QNN distinguishes pure from mixed states with 16--64 copies per seed from 2 to 6 qubits, while the classical-shadow method we test needs 128--4{,}096, a small-scale illustration of a known multi-copy separation. On the device, at 2 qubits, the gap persists but narrows (64 vs.\ 128 copies for 90\% accuracy, against 32 vs.\ 128 in simulation), and here the same-device noise model understates the noise of the deeper two-copy circuit.
+All code, data pipelines, result files and job identifiers are public.
 \end{abstract}
 
 \section{Introduction}
-Claims of quantum advantage in machine learning are hard to evaluate when results are reported without a matched classical baseline~\cite{bowles2024better}.
-We ask a deliberately narrow question: for small, trainable quantum classifiers that run on today's hardware, which tasks show any benefit over classical models, and how much does real-device noise change the answer?
+Claims of quantum advantage in machine learning are hard to evaluate when results are reported without matched classical baselines~\cite{bowles2024better}.
+We ask a narrow question: for small, trainable quantum classifiers that run on current hardware, on which tasks do they differ from well-tuned classical models, and how much does real-device noise change their outputs?
 
-We report two projects. The first trains a 4-qubit QNN on classical data, including two text-classification tasks. The second classifies quantum states directly, where theory predicts separations for learners with quantum memory~\cite{huang2022experiments}. Both run end to end on IBM Quantum hardware through the free Open Plan. Our contributions are:
+We report two projects. The first trains a 4-qubit QNN on classical data, including two text-classification tasks, and runs the trained circuits on IBM Quantum hardware. The second classifies quantum states directly, a setting where theory predicts separations for learners with quantum memory~\cite{huang2022experiments,chen2021memory,aharonov2022qam}; its purity result is in exact simulation up to 6 qubits, with a 2-qubit check on hardware. Our contributions are:
 \begin{itemize}
-  \item an evaluation protocol that keeps quantum and classical models on identical inputs and hardware and simulation on identical samples (Section~\ref{sec:protocol});
-  \item evidence that circuit design, not qubit count, dominated accuracy on classical data, and that a well-designed QNN matches but does not clearly beat classical models there (Section~\ref{sec:classical});
-  \item a repeated-run analysis showing a current Heron-generation device is effectively noise-free for shallow classifiers, and that a commonly used noise model overstates its bias (Section~\ref{sec:hardware});
-  \item a small-scale reproduction of the exponential copy-complexity gap between two-copy QNNs and classical shadows for purity testing (Section~\ref{sec:quantum}).
+  \item an evaluation protocol that keeps quantum and classical models on identical inputs, tunes the classical baselines, and compares hardware with simulation on identical inputs (Section~\ref{sec:protocol});
+  \item evidence, with seed variation and paired confidence intervals, that a well-designed QNN is close to but not better than tuned classical models on the same features for two text tasks, and a controlled ablation of the circuit design (Section~\ref{sec:classical});
+  \item a repeated hardware study on fixed physical qubits showing statistically indistinguishable accuracy but a small resolvable output bias, reproduced by a noise model of the same device (Section~\ref{sec:hardware});
+  \item a small-scale simulation of the copy-complexity gap between a learned two-copy QNN and a classical-shadow baseline for purity testing, with per-seed results, measured gradient variance, and a 2-qubit hardware run in which the gap narrows but persists (Section~\ref{sec:quantum}).
 \end{itemize}
 
 \section{Evaluation protocol}\label{sec:protocol}
 \begin{enumerate}
-  \item \textbf{Same inputs.} Classical baselines (logistic regression, RBF SVM, and an MLP where noted) receive exactly the features encoded into the circuit.
-  \item \textbf{Classical ceiling.} We also report the best practical classical model, trained on all available data and features.
-  \item \textbf{Same samples on hardware.} Device runs use a test subset to save quantum time; they are compared only with the noise-free simulator on that subset.
-  \item \textbf{Repeat anomalies.} An unexpected hardware result is re-run, and the number of flipped predictions is compared with the expectation from finite sampling.
+  \item \textbf{Same inputs.} Classical baselines (logistic regression and an RBF SVM; an MLP where noted) receive exactly the features encoded into the circuit.
+  \item \textbf{Tuned baselines and a classical reference.} Same-feature baselines are tuned by 5-fold cross-validation on the training data only. We also report logistic regression on the full feature set and all training data.
+  \item \textbf{Same inputs on hardware.} Device runs use a fixed random subset of the test set; they are compared only with the noise-free simulator on that subset.
+  \item \textbf{Shot noise as the null hypothesis.} Prediction changes on hardware are compared with the exact distribution expected from finite sampling alone, and repeated in independent jobs.
 \end{enumerate}
-Rule 3 was not a formality: our first hardware chart placed 40-sample device accuracy beside 200-sample simulator accuracy, which made the device appear better than the simulator on one dataset.
+\paragraph{Disclosure.} The circuit design and feature-reduction method were chosen in exploratory runs that reported test-set accuracy; no separate validation set was held out for those choices. The ablation in Section~\ref{sec:classical} and the multi-seed results quantify how sensitive the conclusions are to them. Rule 3 was introduced after our first hardware chart placed 40-input device accuracy beside 200-input simulator accuracy, which made the device appear better than the simulator on one dataset.
 
 \section{Quantum classifiers on classical data}\label{sec:classical}
-\paragraph{Model.} Inputs are reduced to one feature per qubit and scaled to $[0,\pi]$. The circuit repeats, twice, an $R_Y(x_i)$ encoding layer followed by a trainable \texttt{RealAmplitudes} block (data re-uploading~\cite{perezsalinas2020reuploading}); the class is the measured value of qubit~0. Weights are trained with L-BFGS-B on cross-entropy, using exact simulated probabilities. We used Qiskit~1.4~\cite{qiskit}.
+\paragraph{Model.} Inputs are reduced to one feature per qubit and min--max scaled to $[0,\pi]$ using the training data. The circuit repeats, twice, an $R_Y(x_i)$ encoding layer followed by one trainable \texttt{RealAmplitudes} layer (data re-uploading~\cite{perezsalinas2020reuploading,schuld2021encoding}); the class is the measured value of qubit~0 (class~1 if $P(1) > 0.5$). Weights are initialised uniformly in $[-\pi,\pi]$ from the seed and trained with L-BFGS-B (at most 60 iterations, one start) on the cross-entropy of the exact simulated output probabilities, with one-hot labels. We used Qiskit~1.4~\cite{qiskit} and qiskit-machine-learning~0.8.
 
-An initial design with the \texttt{ZZFeatureMap} encoding~\cite{havlicek2019supervised}, all-qubit parity readout and training on sampled counts barely exceeded chance (breast cancer: 0.68). The design above reached 0.92 on the same split, a larger effect than any change in qubit count we tried.
-
-\paragraph{Text tasks.} Texts are embedded with all-MiniLM-L6-v2~\cite{reimers2019sbert} (384 dimensions) and reduced to four features with partial least squares (PLS), fitted on the full training split. On text, supervised PLS outperformed PCA by about 15 points for a classical model on the same four features. We use Rotten Tomatoes sentence polarity~\cite{pang2005seeing} and 12{,}116 NVD CVE descriptions published January--April 2024, labelled high/critical if the CVSS v3.1 base score is at least 7.0, split by publication date (80/20). The QNN trains on 600 texts.
+\paragraph{Text data and partitions.} Texts are embedded with all-MiniLM-L6-v2~\cite{reimers2019sbert} (384 dimensions) and reduced to four features with partial least squares (PLS), fitted on the full training split; the scalers are also fitted on training data only.
+\emph{Sentiment}: Rotten Tomatoes sentence polarity~\cite{pang2005seeing}, the standard 8{,}530/1{,}066 train/test split (the 1{,}066-sentence validation split is unused), balanced.
+\emph{CVE severity}: 12{,}116 NVD descriptions with CVSS v3.1 scores, published 1~January--29~April 2024, labelled high/critical if the base score is at least 7.0, and split by publication date: training up to 9~April 2024 (9{,}692; 49.9\% high/critical), test after it (2{,}424; 42.2\%). The label shift explains the 0.578 majority-class baseline.
+For each seed, the QNN and the same-feature baselines are trained on the same balanced random subset of 600 training texts; the full-embedding reference uses all training texts.
 
 \begin{table}[h]
 \centering
-\begin{tabular}{lcccc}
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcc}
 \toprule
-Task (test size) & Majority & QNN, 4 qubits & LogReg, same 4 & LogReg, full embedding \\
+Model (test accuracy, mean $\pm$ std over 3 seeds) & Sentiment (1{,}066) & CVE severity (2{,}424) \\
 \midrule
-Sentiment (1{,}066) & 0.500 & 0.758 & 0.769 & 0.774 \\
-CVE severity (2{,}424) & 0.578 & 0.699 & 0.692 & 0.715 \\
+Majority class & 0.500 & 0.578 \\
+QNN, 4 qubits & 0.757 $\pm$ 0.007 & 0.699 $\pm$ 0.015 \\
+Logistic regression, same 4 features, defaults & 0.770 $\pm$ 0.000 & 0.688 $\pm$ 0.004 \\
+Logistic regression, same 4 features, CV-tuned & 0.772 $\pm$ 0.002 & 0.689 $\pm$ 0.004 \\
+RBF SVM, same 4 features, CV-tuned & 0.770 $\pm$ 0.004 & 0.691 $\pm$ 0.008 \\
+Logistic regression, full embedding, all data (defaults / CV-tuned) & 0.774 / 0.774 & 0.715 / 0.702 \\
+\midrule
+Paired 95\% CI, QNN $-$ tuned logistic regression (seed 0) & [$-0.030$, $-0.002$] & [$-0.009$, $+0.023$] \\
 \bottomrule
-\end{tabular}
-\caption{Test accuracy on the text tasks. The QNN matches a classical model given the same four features.}
+\end{tabular}}
+\caption{Text tasks. Confidence intervals are percentile bootstraps over test items (2{,}000 resamples). Tuning grids: $C \in \{0.01,\dots,100\}$; for the SVM also $\gamma \in \{\text{scale}, 0.1, 1, 10\}$.}
 \label{tab:text}
 \end{table}
 
-Figure~\ref{fig:bench} extends the comparison to breast cancer, iris (versicolor vs.\ virginica) and two moons. The QNN is within 0--10 points of the best classical model and never clearly better.
+On sentiment the QNN is consistently about 1.5 points below the tuned classical models, and the paired interval excludes zero. On CVE severity the QNN is nominally ahead but the paired interval includes zero, so we read it as a tie. Cross-validated tuning of the full-embedding model lowered its CVE test accuracy (0.715 to 0.702), consistent with the label shift between the time-ordered splits.
+
+\paragraph{Which design choice mattered?} An earlier design, using the \texttt{ZZFeatureMap} encoding~\cite{havlicek2019supervised}, parity readout of all qubits and training on 1{,}024-shot sampled probabilities with COBYLA, scored about 0.69 on breast cancer. Table~\ref{tab:ablation} changes one factor at a time from the final design, over three seeds (the seed sets the 70/30 split and the initial weights). The encoding accounts for most of the difference; the other choices, including the number of qubits between 2 and 6, change accuracy by at most 2.3 points.
+
+\begin{table}[h]
+\centering
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lcc}
+\toprule
+Variant (breast cancer, 300 training / 171 test, PCA features) & Accuracy & vs.\ final \\
+\midrule
+Final: angle encoding, re-uploaded twice, qubit-0 readout, exact, L-BFGS-B, 4 qubits & 0.910 $\pm$ 0.011 & -- \\
+\texttt{ZZFeatureMap} encoding (no re-upload), rest as final & 0.700 $\pm$ 0.032 & $-0.211$ \\
+No re-uploading & 0.887 $\pm$ 0.015 & $-0.023$ \\
+Parity readout & 0.924 $\pm$ 0.005 & $+0.014$ \\
+COBYLA instead of L-BFGS-B & 0.903 $\pm$ 0.003 & $-0.008$ \\
+Sampled (1{,}024-shot) training, COBYLA & 0.899 $\pm$ 0.012 & $-0.012$ \\
+Original design (all of the above changes) & 0.690 $\pm$ 0.051 & $-0.220$ \\
+2 qubits / 6 qubits & 0.916 / 0.899 & $+0.006$ / $-0.012$ \\
+\bottomrule
+\end{tabular}}
+\caption{One-factor ablation, mean $\pm$ std over 3 seeds; all variants are evaluated with exact probabilities. This is a single dataset and should be read as indicative.}
+\label{tab:ablation}
+\end{table}
+
+Figure~\ref{fig:bench} gives the same comparison on three standard datasets and on the two text tasks, using smaller, separate splits (300 training and at most 200 test items, PCA for the tabular data). The QNN is within 0--10 points of the best classical model on each and above logistic regression only on the nonlinear two-moons task, where the RBF SVM is best. The text-task numbers in Table~\ref{tab:text} supersede the text-task bars in this figure.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=\linewidth]{figures/agi_benchmark.png}
-\caption{Test accuracy of the QNN (ideal and simulated-noise) and classical models on identical reduced features.}
+\caption{Benchmark on smaller, separate splits: test accuracy of the QNN (noise-free and with the \texttt{FakeManilaV2} noise model) and classical models on identical reduced features, one seed.}
 \label{fig:bench}
 \end{figure}
 
 \section{Real-hardware behaviour}\label{sec:hardware}
-We ran the trained weights on \texttt{ibm\_marrakesh} with 1{,}024 shots per input. After transpilation the circuit has depth 37 and six CZ gates. On identical test subsets (40 inputs; 30 for iris), device accuracy equalled noise-free accuracy on four of five datasets (Figure~\ref{fig:hw}); CVE severity dropped from 0.725 to 0.650.
+\paragraph{Setup.} We ran the trained sentiment and CVE models (seed 0, Table~\ref{tab:text}) on IBM's 156-qubit Heron device \texttt{ibm\_marrakesh} through the free Open Plan, with \texttt{SamplerV2}, 1{,}024 shots and no error mitigation or dynamical decoupling. Each circuit was transpiled once with Qiskit's preset pass manager (optimisation level 1, \texttt{seed\_transpiler}=0), so every run used the same physical qubits (0--3); the compiled circuit has depth 37 with six CZ gates. At execution time the readout errors of these qubits were 0.006--0.024 and the CZ errors 0.0022--0.0027 (full snapshot and job identifiers in Appendix~\ref{app:repro}). For each task we drew a fixed, stratified random sample of 200 test inputs and ran it as separate jobs: three for CVE severity (two at 16:16 and 16:18~UTC, and one about three hours later at 19:22~UTC) and one for sentiment. The device's reported calibration of these qubits was the same for all three CVE runs, so the later run separates them in time but not across a recalibration.
+
+\paragraph{Statistics.} For an input with noise-free probability $p$ and $N$ shots, the probability that sampling alone changes the prediction is the exact binomial tail
+\begin{equation}
+q(p) = \begin{cases} P(K \le N/2), & p > 1/2,\\ P(K > N/2), & p \le 1/2,\end{cases}\qquad K \sim \mathrm{Bin}(N, p).
+\end{equation}
+Treating inputs and runs as independent, the total number of changed predictions follows a Poisson-binomial distribution, which we compute exactly by convolution. Bias is the mean signed difference between device and noise-free $P(\text{class }1)$, with a 95\% bootstrap interval over inputs.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.85\linewidth]{figures/agi_hardware.png}
-\caption{Noise-free simulator vs.\ \texttt{ibm\_marrakesh} on the same test inputs.}
+\includegraphics[width=\linewidth]{figures/agi_hardware_study.png}
+\caption{Hardware study, 200 inputs per task. (a) Accuracy per run with Wilson 95\% intervals; dashed lines are noise-free accuracy on the same inputs. (b) Mean signed shift of $P(\text{class }1)$ relative to noise-free simulation, pooled over runs, with 95\% bootstrap intervals.}
 \label{fig:hw}
 \end{figure}
 
-To test whether the drop reflects device bias, we re-ran the same 40 CVE inputs three times. For an input with noise-free probability $p$, the chance that $N$-shot sampling alone crosses the decision boundary is
-\begin{equation}
-P_{\text{flip}}(p) = \Phi\!\left(-\frac{|p-\tfrac12|}{\sqrt{p(1-p)/N}}\right).
-\end{equation}
-Summed over inputs this predicts 1.15 flips per run. We observed 2, 2 and 1 (accuracies 0.725, 0.675, 0.700): 5 flips against 3.45 expected, a Poisson tail probability of $\approx 0.27$. No input flipped in every run, and every flipped input had $|p - \tfrac12| < 0.025$. The mean shift of $P(\text{class }1)$ was $-0.006$. The same analysis on Qiskit's \texttt{FakeManilaV2} noise model gave a mean shift of $-0.030$ and two inputs that flipped in every run, overstating the bias of the real device.
+\paragraph{Results.} Figure~\ref{fig:hw} and Table~\ref{tab:hw} summarise the study. Device accuracy is statistically indistinguishable from noise-free accuracy: with 200 inputs, Wilson intervals span about $\pm 0.065$, and the three CVE runs score 0.685, 0.655 and 0.700 around a noise-free 0.685. The numbers of changed predictions are at the edge of what shot noise explains: 19 against 13.3 expected over three CVE runs ($p = 0.055$), and 4 against 3.1 for sentiment ($p = 0.37$). Repeated runs agree on 96\% of predictions. The device shows a small, statistically resolvable bias towards class~0 on both tasks, $-0.0046$ for CVE (pooled over three runs) and $-0.0035$ for sentiment, with intervals that exclude zero. The per-run CVE bias was $-0.0063$ and $-0.0053$ in the first session and $-0.0022$ three hours later, so its size varies between sessions even under the same reported calibration; its sign did not. Such a bias can change predictions for inputs near the decision boundary, so label agreement alone understates the effect of noise.
+
+\begin{table}[h]
+\centering
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llcccc}
+\toprule
+Task & Backend & Accuracy per run & Changed / expected & $p$ & Bias [95\% CI] \\
+\midrule
+CVE (ideal 0.685) & \texttt{ibm\_marrakesh} & 0.685, 0.655, 0.700 & 19 / 13.3 & 0.055 & $-0.0046$ [$-0.0067$, $-0.0026$] \\
+ & FakeMarrakesh & 0.680 & 3 / 4.4 & 0.86 & $-0.0043$ [$-0.0066$, $-0.0019$] \\
+ & FakeManilaV2 & 0.695 & 12 / 4.4 & $<0.001$ & $-0.0253$ [$-0.0299$, $-0.0209$] \\
+Sentiment (ideal 0.740) & \texttt{ibm\_marrakesh} & 0.730 & 4 / 3.1 & 0.37 & $-0.0035$ [$-0.0059$, $-0.0013$] \\
+ & FakeMarrakesh & 0.745 & 3 / 3.1 & 0.63 & $-0.0027$ [$-0.0046$, $-0.0007$] \\
+ & FakeManilaV2 & 0.730 & 8 / 3.1 & 0.003 & $-0.0209$ [$-0.0246$, $-0.0167$] \\
+\bottomrule
+\end{tabular}}
+\caption{Hardware study, 200 inputs per task, 1{,}024 shots. ``Changed / expected'' counts predictions that differ from the noise-free prediction, against the exact shot-noise expectation; $p = P(\text{total} \ge \text{observed})$ under shot noise alone.}
+\label{tab:hw}
+\end{table}
+
+\paragraph{Noise models.} \texttt{FakeMarrakesh}, Qiskit's noise model built from a calibration snapshot of the same device, reproduces both the accuracy behaviour and the bias of the real device within the intervals. \texttt{FakeManilaV2}, a model of an older 5-qubit device, overstates the bias about fivefold and changes significantly more predictions than shot noise allows. This compares two specific noise models on one circuit; it suggests matching the noise model to the device, rather than a general statement about noise models.
+
+\paragraph{Earlier, smaller run.} A first run on 40 inputs per dataset (30 for iris) on the previous day reproduced the noise-free predictions on four of five datasets; CVE changed three predictions, and three repeats on the same 40 inputs gave 5 changes against 3.45 expected (exact $p = 0.24$; 8 against 4.6, $p = 0.063$, including the first run). These smaller samples motivated the study above.
 
 \section{Quantum classifiers on quantum data}\label{sec:quantum}
-The second project gives models direct access to quantum states. Classical learners receive classical-shadow features~\cite{huang2020shadows} from random-Pauli snapshots, or full state vectors where noted.
+The second project gives models direct access to quantum states; classical learners (logistic regression, RBF SVM, MLP) receive classical-shadow estimates~\cite{huang2020shadows} from random-Pauli snapshots, or full state vectors where noted. Each experiment uses 200 training and 400 test states per size; entanglement and phase results are over five seeds and purity results over three, each seed redrawing states, shot noise and initialisations. The best classical learner is selected on the test set, which favours the classical side.
 
-\paragraph{Entanglement (2--4 qubits).} A two-copy QNN separates entangled from product states perfectly in exact simulation; a one-copy QNN stays at chance, as its output is linear in $\rho$. Classical models on full state vectors fall towards chance as qubits increase (0.69 to 0.54), while the best model on 256 shadow snapshots reaches 0.94--0.99 depending on size.
+\paragraph{Entanglement (2--4 qubits).} The task separates product states from entangled states (Meyer--Wallach $Q \ge 0.2$). A two-copy QNN, which receives two copies of each state, is perfect in exact simulation and reaches $0.991 \pm 0.006$, $0.992 \pm 0.004$ and $0.996 \pm 0.005$ at 2, 3 and 4 qubits with 256 copies. A one-copy QNN stays at chance (0.47--0.52 per seed): with one copy and a fixed measurement its output probability is linear in $\rho$, and this label is not a linear function of the state; this does not imply that every single-copy method fails. Classical learners on full state vectors reach only $0.715 \pm 0.018$, $0.569 \pm 0.024$ and $0.524 \pm 0.025$, but learners on classical-shadow purity features are perfect with exact estimates and reach $0.951 \pm 0.009$, $0.975 \pm 0.005$ and $0.988 \pm 0.006$ with 256 snapshots. The shadow baseline therefore closes the gap to within 0.04 at 2 qubits and 0.01 at 4 qubits: this task does not separate the two approaches.
 
-\paragraph{Phases.} For ground states of the transverse-field Ising chain (4--8 qubits) and a $\mathbb{Z}_2$ lattice gauge model, QCNNs~\cite{cong2019qcnn}, generic QNNs and classical models all score 0.96--1.00: no quantum edge.
+\paragraph{Phases.} For ground states of the transverse-field Ising chain (4--8 qubits) and a $\mathbb{Z}_2$ lattice gauge model (8 link qubits), we use a QCNN with hardware-efficient units: convolution layers of $R_Y R_Z$, CX, $R_Y R_Z$ on neighbouring qubits (8 weights per layer, shared across the ring) and coherent pooling that halves the active qubits down to one readout qubit (4 weights per layer), following the layer structure of~\cite{cong2019qcnn}. (The 3-parameter units of the Qiskit tutorial output exactly 0.5 on these spin-flip-symmetric states.) The QCNN, a generic QNN and classical models all score 0.96--1.00 overall. These tasks are easy: logistic regression on a \emph{single} exact feature (mean nearest-neighbour $ZZ$, or mean $X$) reaches $0.994 \pm 0.005$ at 4 qubits and $0.995 \pm 0.006$ at 8, and the mean electric field alone reaches $0.998 \pm 0.002$ on the gauge model. All errors fall near the critical point (about 20\% of test states). There, the exact-simulation QCNN reaches $0.963 \pm 0.037$ (4 qubits, $|h-1|<0.2$) and $0.974 \pm 0.033$ (8 qubits), against $0.901 \pm 0.033$ and $0.965 \pm 0.014$ for classical learners on exact $Z/X$ expectations; with spreads of this size, only the 4-qubit difference is suggestive. The phase tasks do not discriminate between models.
 
-\paragraph{Purity.} Distinguishing Haar-random pure states from random rank-2 mixed states requires estimating a global property. Single-copy strategies need a number of copies growing exponentially with system size, while a two-copy SWAP-type test needs $O(1)$~\cite{huang2022experiments}. Our learned two-copy QNN reaches 90\% accuracy with 16--32 copies at every size from 2 to 6 qubits; classical shadows need 128, 256, 512, 1{,}024 and 4{,}096 (Figure~\ref{fig:purity}). Training the two-copy model hit a barren plateau~\cite{mcclean2018barren} at 5 qubits with independent per-pair blocks; sharing one block across copy pairs, or transferring weights trained at 2 qubits, removed it.
+\paragraph{Purity.} Haar-random pure states are distinguished from random rank-2 mixed states, a global property. Single-copy strategies need a number of copies that grows exponentially with system size, while a two-copy SWAP-type test needs a constant number~\cite{huang2022experiments,chen2021memory}. The two-copy QNN reaches 1.000 in exact simulation at every size; the one-copy QNN stays at chance (0.44--0.57 per seed). Table~\ref{tab:purity} reports the copies of each test state needed for 90\% test accuracy, on the grid $2, 4, \dots, 4096$. The per-seed ranges of the two methods never overlap. At 5 qubits the shadow mean curve (1{,}024) lies below the per-seed median because the mean only just reaches 0.90 there.
+
+\begin{table}[h]
+\centering
+\small
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+Qubits & 2 & 3 & 4 & 5 & 6 \\
+\midrule
+Two-copy QNN, mean curve & 32 & 16 & 32 & 32 & 32 \\
+Two-copy QNN, per seed & 64, 16, 16 & 16, 16, 16 & 32, 16, 16 & 16, 32, 16 & 64, 32, 16 \\
+Classical shadows (best of 3 learners), mean curve & 128 & 256 & 512 & 1{,}024 & 4{,}096 \\
+Classical shadows, per seed & 128 (all) & 256 (all) & 512 (all) & 2048, 1024, 2048 & 2048, 4096, 4096 \\
+\bottomrule
+\end{tabular}}
+\caption{Copies of each test state needed to reach 90\% test accuracy, exact simulation. ``Mean curve'': smallest grid value where accuracy averaged over three seeds is at least 0.9; ``per seed'': the same for each seed. The one-copy QNN never reaches 90\%.}
+\label{tab:purity}
+\end{table}
+
+\paragraph{Trainability.} The two-copy model was trained at 2 qubits and its shared block transferred to larger sizes with 30 fine-tuning steps. Training with a separate block per copy pair from a random start failed at 5 qubits in one of three seeds ($0.85 \pm 0.26$). To test whether this reflects a barren plateau~\cite{mcclean2018barren,cerezo2021cost}, we measured the variance of the gradient of the class-separation signal $D = \overline{P}_{\text{mixed}} - \overline{P}_{\text{pure}}$ at random initialisations (100 draws $\times$ 3 seeds, exact gradients, 2--7 qubits). With per-pair blocks the variance decays from $9.5 \times 10^{-4}$ to $1.0 \times 10^{-6}$, a factor of 3.9 per qubit (fitted $\log_2$ slope $-1.97$, close to $4^{-n}$): exponentially vanishing gradients, as expected for this global cost. With one block shared across pairs the decay slows to a factor of 1.7 per qubit ($2.6 \times 10^{-3}$ to $1.6 \times 10^{-4}$). No initialisation in either model had a gradient norm below $10^{-3}$ in this range, so the trend, not an outright plateau, explains the failure we saw.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=\linewidth]{figures/entangle_purity.png}
-\caption{Pure vs.\ mixed states. Left: copies of each test state needed for 90\% accuracy. Right: accuracy vs.\ copies at 6 qubits (mean and spread over 3 seeds).}
+\caption{Pure vs.\ mixed states, exact simulation. Left: copies needed for 90\% accuracy (mean curves). Right: accuracy vs.\ copies at 6 qubits (mean and spread over 3 seeds).}
 \label{fig:purity}
 \end{figure}
 
+\paragraph{Purity on hardware.} We ran the 2-qubit purity test on \texttt{ibm\_marrakesh} in two independent runs on the same 60 test and 20 calibration states, with 1{,}024 copies per state and fixed physical qubits. Mixed states are prepared as 3-qubit purifications with the ancilla unmeasured, so that pure and mixed preparations both compile to 7 CZ gates and circuit depth does not reveal the label. After routing, the two-copy circuit has about 19 CZ gates against 7 for a shadow circuit. Each model's decision rule is refitted on the 20 labelled calibration states run on the device (``recalibrated''); test states are never used for this. At 1{,}024 copies every model is at 0.99--1.00. Subsampling the device counts gives accuracy against the number of copies (Figure~\ref{fig:hwpurity}): the two-copy QNN needs 64 copies for 90\% and the shadow method 128, against 32 and 128 in noise-free simulation at this size. The separation survives on hardware but is halved, because the deeper two-copy circuit absorbs more noise. Both methods' purity estimates correlate with the true $\mathrm{Tr}\,\rho^2$ ($r = 0.986$ for the QNN, 0.975--0.981 for shadows) and both read low by 0.06--0.10.
+
+Unlike the shallow text classifier of Section~\ref{sec:hardware}, here \texttt{FakeMarrakesh} \emph{understates} the device noise: the QNN's mean output shift is $+0.038$ and $+0.041$ on the device against $+0.015$ and $+0.017$ in the noise model, and the noise model puts the QNN at 32 copies rather than 64. For the shadow circuits the two agree within the run-to-run spread. A calibration-snapshot noise model is therefore adequate for shallow circuits but not for the deeper multi-copy ones here.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\linewidth]{figures/entangle_hw_purity.png}
+\caption{Pure vs.\ mixed, 2 qubits, on \texttt{ibm\_marrakesh} (solid) and \texttt{FakeMarrakesh} (dashed): test accuracy against copies of each test state, subsampled from 1{,}024-copy runs and recalibrated; mean and spread over two runs. The shadow method was not evaluated at 16 copies.}
+\label{fig:hwpurity}
+\end{figure}
+
+\paragraph{Entanglement and phases on hardware.} The 2-qubit entanglement and 4-qubit Ising classifiers ran twice on 40 test and 16 calibration states with 512 copies (Table~\ref{tab:qhw}). The two-copy QNN loses 20 points on the raw device output and recovers to $0.988 \pm 0.018$ after recalibration; its output shift ($+0.028$, $+0.032$) is again about three times that of \texttt{FakeMarrakesh} ($+0.009$, $+0.010$). The shallower QCNN shifts by $-0.007$ and $-0.009$ against $-0.005$ in the noise model. With 80 pooled predictions a Wilson 95\% interval around 0.95 spans about $[0.88, 0.98]$, so no ranking within a task is significant.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llccc}
+\toprule
+Task & Model & Noise-free & Device & Recalibrated \\
+\midrule
+Entanglement, 2 qubits & Two-copy QNN & 1.000 & $0.800 \pm 0.035$ & $0.988 \pm 0.018$ \\
+ & Best classical (snapshots) & 1.000 & $0.938 \pm 0.018$ & $0.975 \pm 0.000$ \\
+Ising phases, 4 qubits & QCNN & 0.950 & $0.925 \pm 0.035$ & $0.925 \pm 0.035$ \\
+ & Best classical (snapshots) & 0.975 & $0.962 \pm 0.018$ & $0.962 \pm 0.018$ \\
+\bottomrule
+\end{tabular}
+\caption{Quantum-data classifiers on \texttt{ibm\_marrakesh}: test accuracy on 40 states, mean $\pm$ std over two runs, 512 copies. ``Best classical'' is the best of three learners in each column, which favours the classical side.}
+\label{tab:qhw}
+\end{table}
+
+\section{Related work}
+\textbf{Benchmarking.} Bowles et al.~\cite{bowles2024better} benchmark QML models at scale and find that classical baselines often match or beat them; our protocol follows the same spirit at small scale, adding hardware. \textbf{Encoding and expressivity.} Data re-uploading~\cite{perezsalinas2020reuploading} and the Fourier view of encoding~\cite{schuld2021encoding} explain why the encoding dominated our ablation. \textbf{Dequantization.} Quantum-inspired classical algorithms~\cite{tang2019dequantized} and random-Fourier-feature approximations of variational QML models~\cite{landman2022rff} suggest that circuits like ours may be classically approximable; we did not test such surrogates. \textbf{Learning from quantum data.} Exponential separations between learners with and without quantum memory are proven in~\cite{chen2021memory,aharonov2022qam} and demonstrated on hardware in~\cite{huang2022experiments}; our purity experiment is a small-scale illustration of that separation against one classical-shadow method~\cite{huang2020shadows}, in simulation and at 2 qubits on hardware. \textbf{Trainability.} Barren plateaus~\cite{mcclean2018barren} and their dependence on the cost function~\cite{cerezo2021cost} predict the exponential gradient decay we measured for per-pair blocks. \textbf{Hardware characterisation.} Capability benchmarks~\cite{proctor2022capabilities} and error mitigation~\cite{temme2017mitigation} address device noise systematically; we used no mitigation beyond refitting decision rules on labelled device states, and characterise only output bias and accuracy for a few small circuits.
+
 \section{Discussion and limitations}
-Across both projects, a quantum edge appeared only where the model could hold two copies of a quantum state at once; this matches theory~\cite{huang2022experiments}, which we reproduce rather than extend. On classical data the circuit acts as a small classifier on features chosen by a classical encoder, and classical models on the same features do as well. Whether such QNNs can be matched by quantum-inspired classical surrogates~\cite{tang2019dequantized} on these tasks is left for future work.
+In these experiments a quantum model showed an advantage only where it could hold two copies of a quantum state at once, which matches theory~\cite{huang2022experiments,chen2021memory}; we illustrate that result rather than extend it, and only against the classical methods we tested. On hardware that advantage shrank, because the circuit that exploits two copies is deeper, and a same-device noise model did not anticipate how much. On classical data the circuit classifies features chosen by a classical encoder, and tuned classical models on the same features do as well or slightly better.
 
-Limitations: all simulations are at most 8 qubits and exact, so nothing here is classically hard; device evaluations use 30--40 inputs per dataset, enough for an end-to-end check rather than fine-grained accuracy claims; CVE severity from descriptions alone approximates CVSS scoring. The two-copy purity test has not yet been run on hardware.
+Limitations: (i) all simulations use at most 8 qubits and are exact, so nothing here is classically hard; (ii) design choices were explored with test-set feedback (Section~\ref{sec:protocol}); (iii) the ablation uses one dataset; (iv) the hardware study uses one device, one circuit family, 200 inputs per task and few runs within two sessions, and the bias may drift with calibration; (v) prediction changes are tested under an independence assumption across inputs and runs; (vi) CVE severity from descriptions alone approximates CVSS scoring; (vii) the purity test ran on hardware only at 2 qubits and in two runs (preparation circuits for 3 or more qubits were too deep for useful fidelity, and no budget remained for a third run); (viii) the quantum-data hardware runs use 40--60 test states, too few to rank models within a task.
 
-\paragraph{Reproducibility.} All code, configurations and result files are in two repositories: \url{https://github.com/H3XY/AGI} and \url{https://github.com/H3XY/Entangle}. During this work we found that \texttt{qiskit-ibm-runtime}~0.44.1 declares Qiskit~1.x support but fails to transpile for real devices on it; we reported it upstream (Qiskit/qiskit-ibm-runtime\#3563).
+\paragraph{Reproducibility.} Code, configurations, result files and job identifiers are in \url{https://github.com/H3XY/AGI} and \url{https://github.com/H3XY/Entangle}; Appendix~\ref{app:repro} lists versions, commands and jobs. During this work we found that \texttt{qiskit-ibm-runtime}~0.44.1 declares Qiskit~1.x support but fails to transpile for real devices on it; we reported it upstream (Qiskit/qiskit-ibm-runtime\#3563).
 
-\paragraph{Acknowledgements.} Code, experiments and drafting were carried out with assistance from an AI coding assistant (Claude, Anthropic); the author reviewed all results and takes responsibility for the content. We thank IBM Quantum for Open Plan access.
+\paragraph{Acknowledgements.} Code, experiments and drafting were carried out with assistance from an AI coding assistant (Claude, Anthropic); an independent critical review was obtained from another AI model (ChatGPT, OpenAI). The author reviewed all results and takes responsibility for the content. We thank IBM Quantum for Open Plan access.
 
 \bibliographystyle{unsrtnat}
 \bibliography{refs}
+
+\appendix
+\section{Reproducibility details}\label{app:repro}
+\sloppy
+\textbf{Software.} Python 3.12.16; qiskit 1.4.6; qiskit-ibm-runtime 0.43.1 (0.44.x fails on Qiskit~1.x); qiskit-machine-learning 0.8.4; qiskit-aer 0.18.2; numpy 2.4.6; scikit-learn 1.9.1; sentence-transformers 6.2.0. Training uses Qiskit's exact reference \texttt{Sampler}.
+
+\textbf{Commands} (AGI repository): \texttt{python train.py --task sentiment|cve}; \texttt{python -m benchmark.uncertainty} (Table~\ref{tab:text}); \texttt{python -m benchmark.ablation} (Table~\ref{tab:ablation}); \texttt{python -m benchmark.hardware\_study} and \texttt{benchmark.hardware\_study\_report} (Table~\ref{tab:hw}; \texttt{--fake-only} reproduces the noise-model rows without IBM access); \texttt{python -m ibmq.job\_log}. Result files are in \texttt{results/}.
+
+\textbf{IBM jobs} (\texttt{ibm\_marrakesh}, Open Plan; times UTC). 200-input study, 9~November 2026: CVE \texttt{dbov06tt7fqc7388gab0}, \texttt{dbov3ttt7fqc7388gfrg}, \texttt{dbp1pvgou4as73cst2n0}; sentiment \texttt{dbov4itt7fqc7388ggog}. Earlier 40-input runs, 8--9~November 2026: benchmark \texttt{dbolcblt7fqc73881hv0}, \texttt{dbold1tt7fqc73881iqg}, \texttt{dboldboou4as73cs9lcg}, \texttt{dbole58qtr0c738d1ccg}, \texttt{dbolhc0qtr0c738d1ihg}; CVE repeats \texttt{dbomf5gou4as73csbdmg}, \texttt{dbomfas4148s739t8q1g}, \texttt{dbomfg5t7fqc73883ctg}. The full list with timestamps and quantum seconds is in \texttt{results/ibm\_jobs.json}.
+
+\textbf{Quantum-data jobs} (Entangle repository, \texttt{ibm\_marrakesh}, 9~November 2026): purity \texttt{dbp0rd0ou4as73csr3t0}, \texttt{dbp0s1lt7fqc7388jap0} (pilot \texttt{dbp0r10qtr0c738dj0fg}); entanglement and Ising, run 1 \texttt{dbp11agqtr0c738djefg}, \texttt{dbp11eoou4as73csrgp0}, \texttt{dbp11mc4148s739tpbpg}, \texttt{dbp11rlt7fqc7388jns0}; run 2 \texttt{dbp124gqtr0c738djg4g}, \texttt{dbp128k4148s739tpcv0}, \texttt{dbp12g5t7fqc7388jp20}, \texttt{dbp12lc4148s739tpdm0}. Summary with Wilson intervals and per-qubit calibration: \texttt{results/review\_hardware.md}; seed tables \texttt{results/review\_seeds\_stage*.md}; gradient variance \texttt{results/review\_gradients.md}. Qubits used: median $T_1$ 205--236\,$\mu$s, $T_2$ 136--152\,$\mu$s, readout error 0.007--0.018, CZ error 0.0021.
+
+\textbf{Calibration} (physical qubits 0--3 at the start of the 200-input study): readout error 0.006--0.024; CZ error 0.0022--0.0027; full values per qubit, including $T_1$ and $T_2$, in \texttt{results/hardware\_study/*.json}.
 \end{document}

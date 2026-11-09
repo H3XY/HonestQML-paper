@@ -4,6 +4,8 @@ Everything needed to post the preprint and submit it. Steps marked **you** need 
 
 ## 1. Before submitting
 
+- [x] External review (ChatGPT) addressed on 2026-11-09: seeds, tuned baselines, CIs, ablation, 200-input hardware study, exact shot-noise tests, related work, reproducibility appendix.
+
 - [x] Numbers cross-checked against `results/` in both repos (2026-11-09). One fix: shadow accuracy range 0.94–0.99.
 - [x] References checked against arXiv and Crossref. DOIs added; Qiskit is cited via its 2024 paper.
 - [x] Overclaim fixed: the QNN "does not clearly beat" classical models (CVE: 0.699 vs 0.692).
@@ -24,11 +26,11 @@ Build the upload: `./make_arxiv.sh` → `arxiv.zip`.
 | License | CC BY 4.0 (matches LICENSE) |
 | Title | Where Small Quantum Classifiers Help, and Where They Don't: Fair Baselines and Real-Hardware Results on IBM Heron |
 | Authors | Vivek Reddy |
-| Comments | 5 pages, 3 figures, 1 table. Code: https://github.com/H3XY/AGI and https://github.com/H3XY/Entangle |
+| Comments | 11 pages, 5 figures, 5 tables. Code: https://github.com/H3XY/AGI and https://github.com/H3XY/Entangle |
 
-**Abstract** (plain text, 1147 of 1,920 characters):
+**Abstract** (plain text, 1,828 of 1,920 characters):
 
-> We benchmark small quantum neural networks (QNNs) against classical models under four rules: classical baselines see the same inputs, a strong classical ceiling is always reported, hardware runs are compared with noise-free simulation on identical samples, and anomalies are re-run against the shot-noise expectation. On classical data (two text tasks and three standard datasets), a 4-qubit QNN fed by a sentence-embedding encoder matches but does not clearly beat logistic regression on the same four features (within about one point) (sentiment: 0.758 vs. 0.769; CVE severity: 0.699 vs. 0.692). On IBM's 156-qubit ibm_marrakesh, the compiled circuits (depth 37, six two-qubit gates) reproduced noise-free predictions exactly on 4 of 5 datasets; repeated runs attribute the remaining drop to shot noise (p ≈ 0.27), and a standard fake-backend noise model overstated the bias fivefold. On quantum data, a two-copy QNN separates pure from mixed states with about 32 copies from 2 to 6 qubits, while classical shadows need 128 to 4,096, reproducing the known exponential multi-copy separation at small scale. Code and all result files are public.
+> We compare small quantum neural networks (QNNs) with classical models under a fixed protocol: classical baselines receive the same inputs and are tuned by cross-validation, a strong classical reference is always reported, hardware runs are compared with noise-free simulation on identical inputs, and hardware deviations are tested against the exact shot-noise expectation. On two text tasks, a 4-qubit QNN fed by a sentence encoder is within 1.5 percentage points of tuned classical models on the same four features: slightly but significantly below on sentiment (0.757 ± 0.007 vs. 0.772 over three seeds) and statistically tied on CVE severity (0.699 ± 0.015 vs. 0.691). A controlled ablation attributes most of the effect of circuit design to the data encoding (21 points), while 2–6 qubits changed accuracy by at most 1.2 points. On IBM's ibm_marrakesh, with 200 inputs per task and repeated runs on fixed physical qubits, device accuracy is statistically indistinguishable from noise-free simulation, but the device shows a small, resolvable bias in output probability (−0.005 and −0.004, 95% CIs excluding zero) whose size varied between sessions. A noise model of the same device reproduces this bias; a model of an older 5-qubit device overstates it about fivefold. In exact simulation of quantum data, a learned two-copy QNN distinguishes pure from mixed states with 16–64 copies per seed from 2 to 6 qubits, while the classical-shadow method we test needs 128–4,096, a small-scale illustration of a known multi-copy separation. On the device, at 2 qubits, the gap persists but narrows (64 vs. 128 copies for 90% accuracy, against 32 vs. 128 in simulation), and here the same-device noise model understates the noise of the deeper two-copy circuit. All code, data pipelines, result files and job identifiers are public.
 
 **Endorsement (you).** First-time submitters to quant-ph need an endorsement. Start the submission, and arXiv shows an endorsement code. Send it to an established quant-ph author, ideally one whose work you cite or build on. A draft:
 

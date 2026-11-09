@@ -6,9 +6,9 @@ Quantum machine learning beat classical methods only when the data was itself qu
 
 Three findings stand out:
 
-- **On ordinary data, quantum never won.** A 4-qubit classifier for movie-review sentiment and CVE severity came within about 1 point of a classical model given the same inputs, and never clearly beat it.
-- **Real hardware was better than its reputation.** On the same test samples, `ibm_marrakesh` gave exactly the noise-free answers on 4 of 5 datasets. Repeated runs showed the one drop was shot noise, not device error.
-- **On quantum data, the gap was exponential.** Telling pure from mixed quantum states took a 2-copy quantum model about 32 copies at every size from 2 to 6 qubits. The classical method needed 128 copies at 2 qubits and 4,096 at 6.
+- **On ordinary data, quantum did not win.** A 4-qubit classifier for movie-review sentiment and CVE severity came within 1.5 points of tuned classical models given the same inputs: slightly but measurably worse on sentiment, tied on CVE.
+- **Real hardware stayed close to ideal for these small circuits.** On 200 inputs per task, `ibm_marrakesh` was as accurate as the noise-free simulator within statistical error, but it shifted every output slightly in one direction, a small bias we could measure.
+- **On quantum data, a two-copy model needed far fewer copies.** Telling pure from mixed states took the tested two-copy model 16 to 64 copies at every size from 2 to 6 qubits in simulation; the classical method we tested needed 128 at 2 qubits and up to 4,096 at 6. On the real device, at 2 qubits, the gap held but halved. That illustrates a known theoretical result rather than a new one.
 
 ## Why honest benchmarking matters
 
@@ -27,83 +27,95 @@ The first project asks the obvious question: can a small quantum circuit classif
 
 The pipeline is hybrid. A sentence-embedding model turns each text into 384 numbers. Partial least squares (PLS) squeezes those to the 4 directions that best predict the label. A 4-qubit circuit makes the final call. We tested two tasks: movie-review sentiment (Rotten Tomatoes, 10,662 sentences), and CVE severity, predicting from a vulnerability's description whether it is rated high/critical (12,116 NVD entries from early 2024, tested on CVEs published after the training ones).
 
-| Task | Always guess the common class | Quantum, 4 qubits | Classical, same 4 numbers | Classical, full embedding |
-| --- | --- | --- | --- | --- |
-| Sentiment (1,066 test sentences) | 0.500 | 0.758 | 0.769 | 0.774 |
-| CVE severity (2,424 test CVEs) | 0.578 | 0.699 | 0.692 | 0.715 |
+| Model (mean over 3 training seeds) | Sentiment (1,066 test sentences) | CVE severity (2,424 test CVEs) |
+| --- | --- | --- |
+| Always guess the common class | 0.500 | 0.578 |
+| Quantum, 4 qubits | 0.757 | 0.699 |
+| Classical, same 4 numbers, tuned | 0.772 | 0.691 |
+| Classical, full embedding | 0.774 | 0.715 |
 
-**Circuit design mattered more than qubit count.** Our first circuit used the textbook `ZZFeatureMap` encoding, read out the parity of all qubits, and trained on sampled measurement counts. It barely beat a coin flip. Three changes fixed it:
+On sentiment the quantum model was about 1.5 points behind in every seed, a small but statistically clear gap. On CVE it was nominally ahead, but within the margin of error.
 
-- plain angle encoding, re-uploading the input before each trainable layer
-- reading out a single qubit
-- training on exact simulated probabilities
+**One design choice mattered far more than the rest.** Our first circuit used the textbook `ZZFeatureMap` encoding and barely beat a coin flip on our benchmark. A controlled test, changing one thing at a time over three seeds, pinned it down: that encoding alone cost 21 points on breast cancer (0.91 vs 0.70).
 
-Breast-cancer accuracy rose from 0.68 to 0.92. The same lesson applied to the classical side: on text, supervised PLS beat unsupervised PCA by about 15 points, because it keeps the label-relevant directions.
+- re-uploading the input before each layer: about 2 points
+- reading one qubit instead of all of them: about 1 point, in the other direction
+- the optimizer, and training on exact vs sampled probabilities: about 1 point each
+- 2, 4 or 6 qubits: within about 1 point
+
+Everything else was noise next to the encoding. On the classical side, supervised PLS beat unsupervised PCA by about 15 points on text, because it keeps the label-relevant directions.
 
 ## On real hardware: closer to ideal than expected
 
-We ran the trained circuits on `ibm_marrakesh` through IBM's free Open Plan, 1,024 shots per input. On 4 of 5 datasets, the device gave exactly the answers of the noise-free simulator on the same test samples.
+We ran the trained sentiment and CVE classifiers on `ibm_marrakesh` through IBM's free Open Plan: 200 test inputs per task, 1,024 shots per input, no error mitigation, and the same four physical qubits in every run. We compared each run with the noise-free simulator on the same inputs, and with two simulated noise models.
 
-| Dataset | Test samples | Noise-free simulator | ibm_marrakesh |
+| Task | Noise-free | ibm_marrakesh, per run | Bias in P(class 1) [95% CI] |
 | --- | --- | --- | --- |
-| Breast cancer | 40 | 0.875 | 0.875 |
-| Iris | 30 | 0.900 | 0.900 |
-| Two moons | 40 | 0.900 | 0.900 |
-| Sentiment | 40 | 0.675 | 0.675 |
-| CVE severity | 40 | 0.725 | 0.650 |
+| CVE severity | 0.685 | 0.685, 0.655, 0.700 | −0.005 [−0.007, −0.003] |
+| Sentiment | 0.740 | 0.730 | −0.004 [−0.006, −0.001] |
 
-The circuit is small after compiling for the device: depth 37, with 6 two-qubit gates. Noise still nudges every probability, but rarely across the 0.5 decision line.
+**Accuracy: no detectable difference.** With 200 inputs, each accuracy is uncertain by about ±6.5 points. We ran CVE three times, the last one three hours after the first two. The number of predictions that changed was at the edge of what 1,024-shot sampling alone predicts: 19 against 13.3 expected over the three CVE runs (an exact test gives p = 0.055), and 4 against 3.1 for sentiment (p = 0.37). Repeated runs agreed on 96% of predictions. The compiled circuit is small: depth 37, six two-qubit gates.
 
-**The CVE drop was luck, not the device.** We reran the same 40 CVE inputs 3 more times. Accuracy came out 0.725, 0.675 and 0.700. Five answers flipped in total, where shot noise alone predicts 3.45 (a gap that large arises by chance about 27% of the time). No input flipped in every run, and every flipped input sat within 0.025 of the 0.5 line.
+**Bias: small but real, and it drifts.** The device pushed every output slightly toward "negative" and "low/medium", by about 0.004 to 0.005, with confidence intervals that exclude zero. Its size changed between sessions: per CVE run it was 0.006 and 0.005, then 0.002 three hours later, even though IBM reported the same calibration for those qubits. That is too small to move accuracy at this sample size, but it tips inputs that sit near the 0.5 line, which is why an earlier 40-input run happened to lose 3 CVE answers.
 
-**Simulated noise was too pessimistic.** Qiskit's `FakeManilaV2` noise model, based on an older 5-qubit device, shifted scores 5 times more than the real machine (−0.030 vs −0.006 on average). It also flipped 2 inputs in every run. Benchmarks that rely only on such models may understate today's hardware.
+**Match the noise model to the device.** Qiskit's simulated copy of the same machine (`FakeMarrakesh`) reproduced both the accuracy and the bias. A simulated copy of an older 5-qubit device (`FakeManilaV2`) overstated the bias about fivefold and changed significantly more predictions than chance allows.
 
 ## Project 2: quantum-native data
 
 If quantum models have an edge, theory says it is on data that is quantum to begin with. The second project, Entangle, classifies quantum states directly, comparing a quantum model with classical methods that only see measurement results.
 
-**Entanglement (2 to 4 qubits).** A quantum model that receives two copies of each state at once (a "2-copy" model) told entangled from unentangled states perfectly, 1.000. The same model with one copy stayed at chance, about 0.50: its output is a linear function of the state, and entanglement is not. Classical models given the raw state vectors also struggled, around 0.55 at 3 qubits. But classical models given 256 random-measurement snapshots ("classical shadows") reached 0.94 to 0.99 (best model at each size). So quantum access helps here, but classical shadows close most of the gap.
+**Entanglement (2 to 4 qubits).** A quantum model that receives two copies of each state at once (a "2-copy" model) told entangled from unentangled states perfectly in exact simulation, and 0.99 to 1.00 with 256 copies, over five seeds. The same circuit with one copy stayed at chance, about 0.50. That is expected for this model: with one copy, its output probability is a linear function of the state, and this entanglement label is not; it does not mean every single-copy method fails. Classical models given the raw state vectors also struggled: 0.72, 0.57 and 0.52 at 2, 3 and 4 qubits. But classical models given 256 random-measurement snapshots ("classical shadows") reached 0.95, 0.98 and 0.99, within 0.04 to 0.01 of the quantum model. So this task does not separate the two.
 
-**Phases of matter.** Classifying ground states of the Ising spin chain (4 to 8 qubits) gave no quantum edge: every model, quantum or classical, scored 0.96 to 1.00. A toy lattice gauge theory gave the same picture. The tutorial version of the quantum convolutional network (QCNN) also output a constant 0.5 on these symmetric states, so we replaced its building blocks.
+**Phases of matter.** Classifying ground states of the Ising spin chain (4 to 8 qubits) gave no quantum edge: every model, quantum or classical, scored 0.96 to 1.00. A toy lattice gauge theory gave the same picture. The task turned out to be easy: a logistic regression on a single number, such as the average magnetisation, scores 0.99 or better. Every model's mistakes sit near the phase transition, about a fifth of the test states. The tutorial version of the quantum convolutional network (QCNN) also output a constant 0.5 on these symmetric states, so we replaced its building blocks.
 
-**Pure or mixed: an exponential gap.** Here theory predicts that single-copy strategies need exponentially many copies as the system grows, while a 2-copy test needs a fixed number. The experiment reproduced that cleanly:
+**Pure or mixed: a gap that doubles per qubit.** Here theory predicts that single-copy strategies need exponentially many copies as the system grows, while a 2-copy test needs a fixed number. In our simulated test, the learned 2-copy model reached 90% accuracy with 16 to 64 copies per training seed at every size, while the classical-shadow method we tested needed 128 copies at 2 qubits and up to 4,096 at 6:
 
 ![Copies needed for 90% accuracy: classical shadows double with each qubit, the 2-copy quantum model stays flat at about 32](copies_for_90pct.png)
 
-*Source: Entangle stage 5 ([results/stage5_purity.md](https://github.com/H3XY/Entangle/blob/main/results/stage5_purity.md)), exact simulation, 200 training and 400 test states per size, 3 seeds.*
+One caveat: this confirms a known theoretical separation (multi-copy quantum learning) at small scale rather than discovering a new one. The 2-copy model also needed care to train. With separate weights for each copy pair, one of three training runs failed at 5 qubits. We then measured why: at random starting points the gradients shrink about 4× per added qubit, the "barren plateau" effect. Sharing one block of weights across copy pairs slowed that to 1.7× per qubit, and training worked.
 
-One caveat: this confirms a known theoretical separation (multi-copy quantum learning) at small scale rather than discovering a new one. The 2-copy model also needed care to train. At 5 qubits it hit a barren plateau, where gradients vanish; sharing one block of weights across copy pairs fixed it.
+**Pure or mixed on the real device.** We ran the 2-qubit version on `ibm_marrakesh` twice, on 60 test states with 1,024 copies each. Pure and mixed states were prepared with circuits of the same depth, so the device could not tell them apart by circuit length. With all 1,024 copies, every model scored 0.99 to 1.00. With fewer copies the gap showed, but smaller than in simulation:
+
+| Copies of each state needed for 90% | Noise-free simulation | ibm_marrakesh |
+| --- | --- | --- |
+| 2-copy quantum model | 32 | 64 |
+| Classical shadows | 128 | 128 |
+
+![Accuracy against copies on ibm_marrakesh (solid) and its simulated noise model (dashed): the 2-copy model stays ahead of classical shadows, but less so on the real device](hw_purity.png)
+
+The 2-copy circuit is about three times deeper than a shadow circuit (19 two-qubit gates after compiling, against 7), so it picks up more noise. Here Qiskit's simulated copy of the device understated that noise by about 2.5×, unlike for the shallow text classifier. Entangle's entanglement and phase classifiers also ran on the device (40 states, two runs). After a small recalibration on labelled device states they stayed at 0.93 to 0.99, but with so few states no ranking between models is statistically meaningful.
 
 ## What we learned
 
-Quantum models earned their place in only one setting: quantum data that can be loaded two copies at a time. Everywhere else, a well-built classical model matched them.
+In our tests, the quantum models showed an edge in only one setting: quantum data that can be loaded two copies at a time. Everywhere else, a well-built classical model matched them.
 
-| Setting | Quantum edge? | Why |
+| Setting we tested | Quantum edge? | Why |
 | --- | --- | --- |
 | Everyday data (text, medical, synthetic) | No | A classical encoder does the heavy lifting; the circuit only classifies 4 numbers |
-| Quantum data, one copy at a time | No | The model's output is linear in the state; classical shadows do as well |
-| Phases of matter, lattice gauge toy | No | Every model scores 0.96 to 1.00 |
-| Quantum data, two copies at once | Yes, exponential | Purity needs a fixed ~32 copies vs 128 to 4,096 for classical shadows |
+| Quantum data, one copy at a time | No | This model's output is linear in the state; classical shadows do as well |
+| Phases of matter, lattice gauge toy | No | Every model scores 0.96 to 1.00, so the task may be too easy to separate models |
+| Quantum data, two copies at once (simulated; 2 qubits on hardware) | Yes, for this purity test | 16 to 64 copies vs 128 to 4,096 for the classical-shadow method; on hardware 64 vs 128 |
 
 Practical lessons for anyone trying this:
 
-- **Design the circuit before adding qubits.** Encoding and readout choices moved accuracy by 25 points; qubit count did not.
-- **Test small circuits on real hardware.** A depth-37 circuit was effectively noise-free on a current IBM processor, and older noise models overstate the damage.
-- **Expect tooling friction.** Both projects hit the same bug: `qiskit-ibm-runtime` 0.44.1 claims Qiskit 1.x support but breaks real-device compiling on it. We reported it as [Qiskit/qiskit-ibm-runtime#3563](https://github.com/Qiskit/qiskit-ibm-runtime/issues/3563).
-- **Run it on a free plan.** All hardware runs fit within IBM's free Open Plan, using a few minutes of quantum time.
+- **Choose the encoding before adding qubits.** In our ablation the data encoding moved accuracy by 21 points; going from 2 to 6 qubits moved it by about 1.
+- **Test small circuits on real hardware, and look past accuracy.** For these shallow circuits the device matched the noise-free accuracy, but it still carried a small, measurable bias in its outputs.
+- **Use a noise model of the same device, and still check it.** A simulated copy of `ibm_marrakesh` predicted the shallow text circuit's behaviour; a model of an older device did not. For the deeper 2-copy circuit, even the same-device model understated the noise.
+- **Expect tooling friction.** Both projects hit the same bug: `qiskit-ibm-runtime` 0.44.1 claims Qiskit 1.x support but breaks real-device compiling on it. One pinned the package, the other changed a compiler setting. We reported it as [Qiskit/qiskit-ibm-runtime#3563](https://github.com/Qiskit/qiskit-ibm-runtime/issues/3563).
+- **Run it on a free plan.** All hardware runs fit within IBM's free Open Plan, a rolling 10 minutes per 28 days.
 
 ## Limitations and what's next
 
 These are small experiments, and they should be read that way:
 
 - **Small scale.** At most 8 qubits, simulated exactly, so nothing here is beyond classical computers.
-- **Small hardware samples.** 30 to 40 test inputs per dataset on the device for project 1, and 10 states per task for Entangle. Enough for an end-to-end check, not for fine-grained accuracy claims.
-- **A known result.** The exponential gap matches the multi-copy separation proven by Huang et al. in ["Quantum advantage in learning from experiments"](https://arxiv.org/abs/2112.00778). We reproduce it on a small scale; we do not claim a new one.
+- **Small hardware samples.** On the device, project 1 used 200 test inputs per task, with three CVE runs and one sentiment run on one day. Entangle's hardware runs used 40 to 60 states and two runs each, and the purity test ran on hardware only at 2 qubits: larger versions need deeper circuits than the device can run cleanly. Enough to measure accuracy and bias, not to rank models within a task.
+- **A known result.** The purity gap matches the multi-copy separation proven by Huang et al. in ["Quantum advantage in learning from experiments"](https://arxiv.org/abs/2112.00778). We illustrate it at small scale against one classical method; we do not claim a new or general separation.
 - **Approximate labels.** Predicting CVE severity from the description alone approximates CVSS, which also scores attack vector, privileges and impact.
 
 Next steps:
 
-- Run the 2-copy purity test on real hardware, where copies must be prepared side by side.
+- Run the purity test on hardware at 3 or more qubits, which will need error mitigation or a less noisy device.
 - Push the hardware study past where noise starts to matter: more qubits, deeper circuits, and a plot of accuracy loss against two-qubit gate count.
 - Test whether classical models built to mimic quantum circuits ("dequantized" models) can match the quantum ones on the text tasks.
 
