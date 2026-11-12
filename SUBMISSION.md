@@ -11,7 +11,7 @@ Everything needed to post the preprint and submit it. Steps marked **you** need 
 - [x] Overclaim fixed: the QNN "does not clearly beat" classical models (CVE: 0.699 vs 0.692).
 - [x] Code repos: full MIT license and CITATION.cff added; history cleaned (no personal email or hostname) and both repos made public (2026-11-09). Original histories and PRs are in the private, archived H3XY/AGI-archive and H3XY/Entangle-archive.
 - [ ] **you:** read the paper end to end.
-- [ ] **you:** decide on the author line and affiliation, and an optional contact email (currently "Vivek Reddy, Independent researcher").
+- [x] Author line: Vivek Reddy, Independent researcher, vvardhan00@gmail.com.
 - [x] H3XY/AGI and H3XY/Entangle are public.
 - [ ] **you (optional):** archive both repos on Zenodo for a DOI. Log in to zenodo.org with GitHub, enable the repos, then create a GitHub release.
 
@@ -24,7 +24,7 @@ Build the upload: `./make_arxiv.sh` → `arxiv.zip`.
 | Primary category | quant-ph (Quantum Physics) |
 | Cross-list | cs.LG (Machine Learning) |
 | License | CC BY 4.0 (matches LICENSE) |
-| Title | Where Small Quantum Classifiers Help, and Where They Don't: Fair Baselines and Real-Hardware Results on IBM Heron |
+| Title | Small Quantum Classifiers Under Matched Classical and Hardware Tests: Pre-Registered Benchmarks, Fourier Surrogates and IBM Heron Runs |
 | Authors | Vivek Reddy |
 | Comments | 15 pages, 5 figures, 7 tables. Code: AGI v1.0.4 (doi:10.5281/zenodo.24150592) and Entangle v1.0.1 (doi:10.5281/zenodo.24150608) |
 
