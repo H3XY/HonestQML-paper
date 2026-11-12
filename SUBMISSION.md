@@ -26,7 +26,7 @@ Build the upload: `./make_arxiv.sh` → `arxiv.zip`.
 | License | CC BY 4.0 (matches LICENSE) |
 | Title | Where Small Quantum Classifiers Help, and Where They Don't: Fair Baselines and Real-Hardware Results on IBM Heron |
 | Authors | Vivek Reddy |
-| Comments | 15 pages, 5 figures, 7 tables. Code: AGI v1.0.3 (doi:10.5281/zenodo.24149985) and Entangle v1.0.0 (doi:10.5281/zenodo.24148954) |
+| Comments | 15 pages, 5 figures, 7 tables. Code: AGI v1.0.4 (doi:10.5281/zenodo.24150592) and Entangle v1.0.1 (doi:10.5281/zenodo.24150608) |
 
 **Abstract** (plain text, 1,863 of 1,920 characters):
 
