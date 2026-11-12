@@ -20,7 +20,7 @@
 
 \begin{abstract}
 We test small quantum neural networks (QNNs) against classical models under matched conditions: classical baselines get the same inputs and are tuned by cross-validation, the final comparison is pre-registered on untouched data, and hardware runs are compared with noise-free simulation on identical inputs using exact shot-noise statistics.
-On two text tasks, a 4-qubit QNN on sentence-encoder features is within about two points of tuned classical models and has no higher point estimate than any of them (sentiment 0.766 vs.\ 0.769; CVE severity 0.708 vs.\ 0.720, a tie within a pre-set $\pm 3$-point margin; a ten-seed sensitivity analysis keeps the tie but puts the QNN reliably 0.9 points lower); a 1.5-point gap seen during design did not replicate.
+On two text tasks, a 4-qubit QNN on sentence-encoder features is within about two points of tuned classical models and, over three seeds, has no higher point estimate than any of them (sentiment 0.766 vs.\ 0.769; CVE severity 0.708 vs.\ 0.720, a tie within a pre-set $\pm 3$-point margin; a ten-seed sensitivity analysis keeps the tie, with the QNN 0.9 points lower and the interval excluding zero); a 1.5-point gap seen during design did not replicate.
 The circuit's output lies exactly in a 624-feature Fourier basis, and a classical model trained on that basis outperforms the QNN on CVE (0.727) and is inconclusive on sentiment (0.756).
 On IBM's \texttt{ibm\_marrakesh}, no run's accuracy differs significantly from noise-free simulation, but the mean output shifts towards one class in every run; single executions on two further Heron devices show the same sign with larger shifts.
 All code, results and job identifiers are archived.
