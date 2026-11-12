@@ -82,7 +82,7 @@ If quantum models have an edge, theory says it is on data that is quantum to beg
 
 **Pure or mixed: a gap that grows quickly with size.** Here theory predicts that single-copy strategies need exponentially many copies as the system grows, while a 2-copy test needs a fixed number. In our simulated test, the learned 2-copy model reached 90% accuracy with 16 to 32 copies on average (16 to 64 for individual training seeds) at every size, while the classical-shadow method we tested needed 128 copies at 2 qubits and up to 4,096 at 6:
 
-![Copies needed for 90% accuracy: classical shadows double with each qubit, the 2-copy quantum model stays flat at about 32](copies_for_90pct.png)
+![Copies needed for 90% accuracy: the classical-shadow requirement grows quickly with size, the 2-copy quantum model stays flat at 16 to 32](copies_for_90pct.png)
 
 One caveat: this confirms a known theoretical separation (multi-copy quantum learning) at small scale rather than discovering a new one. The 2-copy model also needed care to train. With separate weights for each copy pair, one of three training runs failed at 5 qubits. We then measured why: at random starting points the gradients shrink about 4× per added qubit, the "barren plateau" effect. Sharing one block of weights across copy pairs slowed that to 1.7× per qubit, and training worked.
 
