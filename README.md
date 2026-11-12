@@ -2,7 +2,7 @@
 
 Vivek Reddy, independent researcher (vvardhan00@gmail.com).
 
-- **Full version** ([main.pdf](main.pdf), 15 pages): the pre-registered text benchmark, Fourier dequantization check, IBM Heron hardware study, and the quantum-data study (entanglement, phases, two-copy purity test with a 2-qubit hardware run).
+- **Full version** ([main.pdf](main.pdf), 16 pages): the pre-registered text benchmark, Fourier dequantization check, IBM Heron hardware study, and the quantum-data study (entanglement, phases, two-copy purity test with a 2-qubit hardware run).
 - **Workshop version** ([workshop.pdf](workshop.pdf), 7 pages plus references): the classical-data and hardware parts, with the quantum-data results summarised.
 
 Code: [H3XY/AGI](https://github.com/H3XY/AGI) (v1.0.4, doi:10.5281/zenodo.24150592) and [H3XY/Entangle](https://github.com/H3XY/Entangle) (v1.0.1, doi:10.5281/zenodo.24150608).

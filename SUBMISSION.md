@@ -26,7 +26,7 @@ Build the upload: `./make_arxiv.sh` → `arxiv.zip`.
 | License | CC BY 4.0 (matches LICENSE) |
 | Title | Small Quantum Classifiers Under Matched Classical and Hardware Tests: Pre-Registered Benchmarks, Fourier Surrogates and IBM Heron Runs |
 | Authors | Vivek Reddy |
-| Comments | 15 pages, 5 figures, 7 tables. Code: AGI v1.0.4 (doi:10.5281/zenodo.24150592) and Entangle v1.0.1 (doi:10.5281/zenodo.24150608) |
+| Comments | 16 pages, 5 figures, 7 tables. Code: AGI v1.0.4 (doi:10.5281/zenodo.24150592) and Entangle v1.0.1 (doi:10.5281/zenodo.24150608) |
 
 **Abstract** (plain text, 1,918 of 1,920 characters):
 
