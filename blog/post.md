@@ -7,7 +7,7 @@ In our experiments, the quantum models we tested beat the classical baselines we
 Three findings stand out:
 
 - **On ordinary data, quantum did not win.** A 4-qubit classifier for movie-review sentiment and CVE severity came within about 2 points of tuned classical models given the same inputs, and was not ahead of any of them, on fresh data we held back until the very end.
-- **Real hardware stayed close to ideal for these small circuits.** On 200 inputs per task, `ibm_marrakesh` showed no significant accuracy change against the noise-free simulator on the same inputs, but its average output was nudged slightly in one direction in every run, a small bias whose size varied between sessions.
+- **Real hardware stayed close to ideal for these small circuits.** On 200 inputs per task, `ibm_marrakesh` showed no significant accuracy change against the noise-free simulator on the same inputs, but its average output was nudged slightly in one direction in every run, a small bias whose size varied between sessions and between devices.
 - **On quantum data, a two-copy model needed far fewer copies.** In simulation, telling pure from mixed states took the tested two-copy model 16 to 32 copies on average (16 to 64 for individual training seeds) at every size from 2 to 6 qubits; the classical method we tested needed 128 at 2 qubits and up to 4,096 at 6. In a preliminary run on the real device at 2 qubits it stayed ahead, by about 2.5× instead of 4×. That illustrates a known theoretical result rather than a new one.
 
 ## Why honest benchmarking matters
@@ -58,7 +58,17 @@ We ran the trained sentiment and CVE classifiers on `ibm_marrakesh` through IBM'
 
 **Bias: small, consistent in sign, varying in size.** In every run the device nudged the average output toward "negative" and "low/medium". Per CVE run the shift was 0.006 and 0.005, then 0.002 three hours later, and that last one is within error of zero, even though IBM reported the same calibration for those qubits. Pooled over the three runs it is 0.005, with an interval that excludes zero. That is too small to change accuracy measurably, though it can tip individual inputs that sit near the 0.5 line, which is why an earlier 40-input run happened to lose 3 CVE answers.
 
-**Match the noise model to the device.** Qiskit's simulated copy of the same machine (`FakeMarrakesh`) reproduced both the accuracy and the bias. A simulated copy of an older 5-qubit device (`FakeManilaV2`) overstated the bias about fivefold and changed significantly more predictions than chance allows.
+**Match the noise model to the device.** Qiskit's simulated copy of the same machine (`FakeMarrakesh`) reproduced both the accuracy and the bias on that device. A simulated copy of an older 5-qubit device (`FakeManilaV2`) overstated the bias about fivefold and changed significantly more predictions than chance allows.
+
+**Two more IBM computers.** IBM's free plan also offers `ibm_kingston` and `ibm_fez`, the same 156-qubit Heron model. With the quantum time we had left, we ran the CVE classifier once on each, on 100 of the same inputs.
+
+| Device, same 100 inputs (noise-free 0.650) | Accuracy | Average shift |
+| --- | --- | --- |
+| ibm_marrakesh (3 runs) | 0.650, 0.600, 0.660 | −0.005 |
+| ibm_kingston (1 run) | 0.630 | −0.009 |
+| ibm_fez (1 run) | 0.640 | −0.015 |
+
+Again no device changed accuracy significantly, and every one nudged outputs the same way. But the size of the nudge depends on the device: Fez's is about three times Marrakesh's, a statistically clear difference. And here Qiskit's simulated Fez understated the real Fez's bias, so a same-device noise model matched one of the two devices we could check. With one run per new device, we can't tell a device effect from a bad hour.
 
 ## Project 2: quantum-native data
 
@@ -101,7 +111,7 @@ Practical lessons for anyone trying this:
 
 - **Choose the encoding before adding qubits.** In our ablation the data encoding moved accuracy by 21 points; going from 2 to 6 qubits moved it by about 1.
 - **Test small circuits on real hardware, and look past accuracy.** For these shallow circuits the device matched the noise-free accuracy, but it still carried a small, measurable bias in its outputs.
-- **Use a noise model of the same device, and still check it.** A simulated copy of `ibm_marrakesh` predicted the shallow text circuit's behaviour; a model of an older device did not. For the deeper 2-copy circuit, even the same-device model understated the noise in our two jobs.
+- **Use a noise model of the same device, and still check it.** A simulated copy of `ibm_marrakesh` predicted the shallow text circuit's behaviour; a model of an older device did not, and the simulated copy of ibm_fez understated the real Fez's bias. For the deeper 2-copy circuit, even the same-device model understated the noise in our two jobs.
 - **Expect tooling friction.** Both projects hit the same bug: `qiskit-ibm-runtime` 0.44.1 claims Qiskit 1.x support but breaks real-device compiling on it. One pinned the package, the other changed a compiler setting. We reported it as [Qiskit/qiskit-ibm-runtime#3563](https://github.com/Qiskit/qiskit-ibm-runtime/issues/3563).
 - **Run it on a free plan.** All hardware runs fit within IBM's free Open Plan, a rolling 10 minutes per 28 days.
 
@@ -110,7 +120,7 @@ Practical lessons for anyone trying this:
 These are small experiments, and they should be read that way:
 
 - **Small scale.** At most 8 qubits, simulated exactly, so nothing here is beyond classical computers.
-- **Small hardware samples.** On the device, project 1 used 200 test inputs per task, with three CVE runs and one sentiment run on one day. Entangle's hardware runs used 40 to 60 states and two runs each, and the purity test ran on hardware only at 2 qubits: larger versions need deeper circuits than the device can run cleanly. Enough to measure accuracy and bias, not to rank models within a task.
+- **Small hardware samples.** On the device, project 1 used 200 test inputs per task, with three CVE runs and one sentiment run on one day, plus one 100-input CVE run on each of two other IBM devices. Entangle's hardware runs used 40 to 60 states and two runs each, and the purity test ran on hardware only at 2 qubits: larger versions need deeper circuits than the device can run cleanly. Enough to measure accuracy and bias, not to rank models within a task.
 - **Designed while looking at test scores.** We chose the circuit and features while watching test accuracy. The fresh-data check covers the two text tasks only; the ablation and the quantum-data results have no such untouched replication.
 - **A known result.** The purity gap matches the multi-copy separation proven by Huang et al. in ["Quantum advantage in learning from experiments"](https://arxiv.org/abs/2112.00778). We illustrate it at small scale against one classical method; we do not claim a new or general separation.
 - **Approximate labels.** Predicting CVE severity from the description alone approximates CVSS, which also scores attack vector, privileges and impact.
