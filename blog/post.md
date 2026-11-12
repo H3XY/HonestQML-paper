@@ -45,6 +45,8 @@ The pipeline is hybrid. A sentence-embedding model turns each text into 384 numb
 
 Everything else was noise next to the encoding. On the classical side, supervised PLS beat unsupervised PCA by about 15 points on text, because it keeps the label-relevant directions.
 
+**Can a classical model do what the circuit does?** Yes. Because the circuit feeds each input in twice through a simple rotation, whatever it outputs is mathematically a fixed kind of function: a sum of sines and cosines with 312 possible frequency combinations. We checked this directly: fitting that sum to our trained circuit reproduced it to 15 decimal places. Then we skipped the quantum circuit entirely and trained an ordinary classical model on those sine and cosine features, with a plan written down before running it. On the fresh CVE data it scored 0.727, beating the quantum model's 0.708. On fresh sentiment data it scored 0.756 against 0.766, too close to call, and plain logistic regression on the 4 numbers (0.769) beat both. Whatever the quantum model learns here, a classical model can learn directly.
+
 ## On real hardware: closer to ideal than expected
 
 We ran the trained sentiment and CVE classifiers on `ibm_marrakesh` through IBM's free Open Plan: 200 test inputs per task, 1,024 shots per input, no error mitigation, and the same four physical qubits in every run. We compared each run with the noise-free simulator on the same inputs, and with two simulated noise models.
