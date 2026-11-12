@@ -7,8 +7,8 @@ In our experiments, the quantum models we tested beat the classical baselines we
 Three findings stand out:
 
 - **On ordinary data, quantum did not win.** A 4-qubit classifier for movie-review sentiment and CVE severity came within about 2 points of tuned classical models given the same inputs, and was not ahead of any of them, on fresh data we held back until the very end.
-- **Real hardware stayed close to ideal for these small circuits.** On 200 inputs per task, `ibm_marrakesh` showed no significant accuracy change against the noise-free simulator on the same inputs, but its average output was nudged slightly in one direction in every run, a small bias whose size varied between sessions and between devices.
-- **On quantum data, a two-copy model needed far fewer copies.** In simulation, telling pure from mixed states took the tested two-copy model 16 to 32 copies on average (16 to 64 for individual training seeds) at every size from 2 to 6 qubits; the classical method we tested needed 128 at 2 qubits and up to 4,096 at 6. In a preliminary run on the real device at 2 qubits it stayed ahead, by about 2.5× instead of 4×. That illustrates a known theoretical result rather than a new one.
+- **Real hardware stayed close to ideal for these small circuits.** On 200 inputs per task, `ibm_marrakesh` showed no significant accuracy change against the noise-free simulator on the same inputs, but its average output was nudged slightly in one direction in every run, a small bias whose size varied from run to run.
+- **On quantum data, a two-copy model needed far fewer copies.** In simulation, telling pure from mixed states took the tested two-copy model 16 to 32 copies on average (16 to 64 for individual training seeds) at every size from 2 to 6 qubits; the classical method we tested needed 128 at 2 qubits and up to 4,096 at 6. In a preliminary run on the real device at 2 qubits it stayed ahead; by point estimate the ratio was smaller (about 2.5 to 3× against 6× in simulation), but the uncertainty is too broad to call that a real reduction. That illustrates a known theoretical result rather than a new one.
 
 ## Why honest benchmarking matters
 
@@ -34,7 +34,7 @@ The pipeline is hybrid. A sentence-embedding model turns each text into 384 numb
 | Classical, same 4 numbers, tuned | 0.772 | 0.691 |
 | Classical, full embedding | 0.774 | 0.715 |
 
-**Then we checked on data we had never looked at.** Those test-set numbers are the ones we watched while designing the circuit, so they may flatter it: on them the quantum model looked 1.5 points behind on sentiment and slightly ahead on CVE. So we froze everything, published our predictions and the exact analysis in the repository, and only then downloaded fresh data: Rotten Tomatoes' unused validation sentences, and 13,432 newer CVEs from May to August 2024. On that data the quantum model scored 0.766 against 0.769 for tuned logistic regression on sentiment, so the 1.5-point gap we expected did not show up. On CVE it scored 0.708 against 0.720, within the ±3-point margin we had set for a tie, but it was now slightly behind rather than ahead, and a tuned SVM beat it by 1.8 points. Either way, the quantum model was never ahead.
+**Then we checked on data we had never looked at.** Those test-set numbers are the ones we watched while designing the circuit, so they may flatter it: on them the quantum model looked 1.5 points behind on sentiment and slightly ahead on CVE. So we froze everything, published our predictions and the exact analysis in the repository, and only then downloaded fresh data: Rotten Tomatoes' unused validation sentences, and 13,432 newer CVEs from May to August 2024. On that data the quantum model scored 0.766 against 0.769 for tuned logistic regression on sentiment, so the 1.5-point gap we expected did not show up. On CVE it scored 0.708 against 0.720, within the ±3-point margin we had set for a tie, but it was now slightly behind rather than ahead, and a tuned SVM beat it by 1.8 points. Either way, the quantum model never had the higher score.
 
 **One design choice mattered far more than the rest.** Our first circuit used the textbook `ZZFeatureMap` encoding and barely beat a coin flip on our benchmark. A controlled test over three seeds pinned it down: swapping in that encoding cost 19 to 24 points on breast cancer, whether or not the input was re-uploaded (0.91 vs 0.67 with re-uploading, 0.89 vs 0.70 without).
 
@@ -45,7 +45,7 @@ The pipeline is hybrid. A sentence-embedding model turns each text into 384 numb
 
 Everything else was noise next to the encoding. On the classical side, supervised PLS beat unsupervised PCA by about 15 points on text, because it keeps the label-relevant directions.
 
-**Can a classical model do what the circuit does?** Yes. Because the circuit feeds each input in twice through a simple rotation, whatever it outputs is mathematically a fixed kind of function: a sum of sines and cosines with 312 possible frequency combinations. We checked this directly: fitting that sum to our trained circuit reproduced it to 15 decimal places. Then we skipped the quantum circuit entirely and trained an ordinary classical model on those sine and cosine features, with a plan written down before running it. On the fresh CVE data it scored 0.727, beating the quantum model's 0.708. On fresh sentiment data it scored 0.756 against 0.766, too close to call, and plain logistic regression on the 4 numbers (0.769) beat both. Whatever the quantum model learns here, a classical model can learn directly.
+**Can a classical model do what the circuit does?** Yes. Because the circuit feeds each input in twice through a simple rotation, whatever it outputs is mathematically a fixed kind of function: a sum of sines and cosines with 312 possible frequency combinations. We checked this directly: fitting that sum to our trained circuit reproduced it to 15 decimal places. Then we skipped the quantum circuit entirely and trained an ordinary classical model on those sine and cosine features, with a plan written down before running it. On the fresh CVE data it scored 0.727, beating the quantum model's 0.708. On fresh sentiment data it scored 0.756 against 0.766, too close to call, and plain logistic regression on the 4 numbers (0.769) beat both. So a classical model can represent anything this circuit computes; how well it trains depends on the task: better on CVE, too close to call on sentiment.
 
 ## On real hardware: closer to ideal than expected
 
@@ -70,7 +70,7 @@ We ran the trained sentiment and CVE classifiers on `ibm_marrakesh` through IBM'
 | ibm_kingston (1 run) | 0.630 | −0.009 |
 | ibm_fez (1 run) | 0.640 | −0.015 |
 
-Again no device changed accuracy significantly, and every one nudged outputs the same way. But the size of the nudge depends on the device: Fez's is about three times Marrakesh's, a statistically clear difference. And here Qiskit's simulated Fez understated the real Fez's bias, so a same-device noise model matched one of the two devices we could check. With one run per new device, we can't tell a device effect from a bad hour.
+Again no device changed accuracy significantly, and every one nudged outputs the same way. But the size differed: in the Fez run it was about three times Marrakesh's, a clear difference for these runs. Qiskit's simulated Fez understated the bias in that run, while the simulated Marrakesh matched the real one. With one run per new device, we can't tell a property of the device from a bad hour.
 
 ## Project 2: quantum-native data
 
@@ -86,17 +86,17 @@ If quantum models have an edge, theory says it is on data that is quantum to beg
 
 One caveat: this confirms a known theoretical separation (multi-copy quantum learning) at small scale rather than discovering a new one. The 2-copy model also needed care to train. With separate weights for each copy pair, one of three training runs failed at 5 qubits. We then measured why: at random starting points the gradients shrink about 4× per added qubit, the "barren plateau" effect. Sharing one block of weights across copy pairs slowed that to 1.7× per qubit, and training worked.
 
-**Pure or mixed on the real device (preliminary).** We ran the 2-qubit version on `ibm_marrakesh` as two jobs, on 60 test states with 1,024 copies each. Pure and mixed states were prepared with circuits of the same depth, so the device could not tell them apart by circuit length. Both methods were trained in simulation, then each got the same small correction on the device: a two-number refit on 20 separate, labelled calibration states. That changed accuracy by at most 3 points. With all 1,024 copies, every model scored 0.99 to 1.00. With fewer copies the gap showed, smaller than in simulation:
+**Pure or mixed on the real device (preliminary).** We ran the 2-qubit version on `ibm_marrakesh` as two jobs, on 60 test states with 1,024 copies each. Pure and mixed states were prepared with circuits of the same depth, so the device could not tell them apart by circuit length. Both methods were trained in simulation, then each got the same small correction on the device: a two-number refit on 20 separate, labelled calibration states. That changed accuracy by at most 3 points. With all 1,024 copies, every model scored 0.99 to 1.00. With fewer copies the gap showed. We estimated each threshold by resampling the raw measurements a thousand times, which gives honest (and wide) error bars:
 
 | Copies of each state needed for 90% | Noise-free simulation | ibm_marrakesh, two jobs |
 | --- | --- | --- |
-| 2-copy quantum model | 32 | 45 and 53 |
-| Classical shadows | 128 | 121 and 117 |
-| Ratio | about 4 | 2.7 and 2.2 (intervals 1.6 to 4.0) |
+| 2-copy quantum model | 16 | 48 and 55 |
+| Classical shadows | 108 | 128 and 128 |
+| Ratio (95% interval) | 6.3 (2.5 to 14.9) | 2.9 (1.3 to 7.1) and 2.5 (1.1 to 6.3) |
 
 ![Accuracy against copies on ibm_marrakesh (solid) and its simulated noise model replaying the same circuits (dashed): the 2-copy model stays ahead of classical shadows, by less on the real device](hw_purity.png)
 
-With two jobs on one set of 60 states, this is an illustration rather than a measurement of how the gap scales. The 2-copy circuit is about three times deeper than a shadow circuit (19 two-qubit gates after compiling, against 7), which plausibly explains why it lost more. Replaying the exact same compiled circuits through Qiskit's simulated copy of the device understated the 2-copy circuit's output shift about twofold, unlike for the shallow text classifier. Entangle's entanglement and phase classifiers also ran on the device (40 states, two jobs). After the same kind of recalibration they stayed at 0.93 to 0.99, but with so few states no ranking between models is statistically meaningful.
+The quantum model stays ahead in both jobs, but the error bars overlap the simulated ratio, so we can't say the device shrank the advantage. With two jobs on one set of 60 states, this is an illustration rather than a measurement of how the gap scales. The 2-copy circuit is about three times deeper than a shadow circuit (19 two-qubit gates after compiling, against 7), which plausibly explains why it lost more. Replaying the exact same compiled circuits through Qiskit's simulated copy of the device understated the 2-copy circuit's output shift about twofold, unlike for the shallow text classifier. Entangle's entanglement and phase classifiers also ran on the device (40 states, two jobs). After the same kind of recalibration they stayed at 0.93 to 0.99, but with so few states no ranking between models is statistically meaningful.
 
 ## What we learned
 
@@ -113,7 +113,7 @@ Practical lessons for anyone trying this:
 
 - **Choose the encoding before adding qubits.** In our ablation the data encoding moved accuracy by 21 points; going from 2 to 6 qubits moved it by about 1.
 - **Test small circuits on real hardware, and look past accuracy.** For these shallow circuits the device matched the noise-free accuracy, but it still carried a small, measurable bias in its outputs.
-- **Use a noise model of the same device, and still check it.** A simulated copy of `ibm_marrakesh` predicted the shallow text circuit's behaviour; a model of an older device did not, and the simulated copy of ibm_fez understated the real Fez's bias. For the deeper 2-copy circuit, even the same-device model understated the noise in our two jobs.
+- **Use a noise model of the same device, and still check it.** A simulated copy of `ibm_marrakesh` predicted the shallow text circuit's behaviour; a model of an older device did not, and the simulated copy of ibm_fez understated the bias in our Fez run. For the deeper 2-copy circuit, even the same-device model understated the noise in our two jobs.
 - **Expect tooling friction.** Both projects hit the same bug: `qiskit-ibm-runtime` 0.44.1 claims Qiskit 1.x support but breaks real-device compiling on it. One pinned the package, the other changed a compiler setting. We reported it as [Qiskit/qiskit-ibm-runtime#3563](https://github.com/Qiskit/qiskit-ibm-runtime/issues/3563).
 - **Run it on a free plan.** All hardware runs fit within IBM's free Open Plan, a rolling 10 minutes per 28 days.
 
